@@ -52,20 +52,25 @@ class Settings {
 	}
 
 	/**
-	 * @param string      $option
-	 * @param string|null $default
-	 * @param bool        $not_empty
+	 * @param string $role
 	 *
-	 * @return false|mixed
+	 * @return string
 	 */
-	public static function get_option( string $option, ?string $default = null, bool $not_empty = false ) {
-		if ( true === $not_empty ) {
-			$value = get_option( self::get_option_name( $option ), $default );
+	public static function get_redirect_url( string $role ): string {
+		return esc_url_raw(
+			self::get_option( self::get_redirect_option( $role ), '', true )
+		);
+	}
 
-			return empty( $value ) ? $default : $value;
-		}
-
-		return get_option( self::get_option_name( $option ), $default );
+	/**
+	 * @param string $role
+	 *
+	 * @return string
+	 */
+	public static function get_first_redirect_url( string $role ): string {
+		return esc_url_raw(
+			self::get_option( self::get_first_redirect_option( $role ), '', true )
+		);
 	}
 
 	/**
@@ -74,6 +79,23 @@ class Settings {
 	protected function __construct() {
 		add_action( 'admin_init', array( $this, 'register_settings' ), 10, 0 );
 		add_action( 'admin_menu', array( $this, 'add_ui' ), 10, 0 );
+	}
+
+	/**
+	 * @param string      $option
+	 * @param string|null $default
+	 * @param bool        $not_empty
+	 *
+	 * @return false|mixed
+	 */
+	protected static function get_option( string $option, ?string $default = null, bool $not_empty = false ) {
+		if ( true === $not_empty ) {
+			$value = get_option( self::get_option_name( $option ), $default );
+
+			return empty( $value ) ? $default : $value;
+		}
+
+		return get_option( self::get_option_name( $option ), $default );
 	}
 
 	/**
@@ -86,11 +108,29 @@ class Settings {
 	}
 
 	/**
+	 * @param $role
+	 *
+	 * @return string
+	 */
+	protected static function get_redirect_option( $role ): string {
+		return self::u_join( $role, self::OPTION_REDIRECT_URL );
+	}
+
+	/**
+	 * @param $role
+	 *
+	 * @return string
+	 */
+	protected static function get_first_redirect_option( $role ): string {
+		return self::u_join( $role, self::OPTION_FIRST_REDIRECT_URL );
+	}
+
+	/**
 	 * @param string ...$keys
 	 *
 	 * @return string
 	 */
-	protected static function uJoin( string ...$keys ): string {
+	protected static function u_join( string ...$keys ): string {
 		return join( '_', func_get_args() );
 	}
 
@@ -101,14 +141,14 @@ class Settings {
 		foreach ( array_keys( self::get_roles() ) as $role ) {
 			register_setting(
 				self::UI,
-				self::get_option_name( self::uJoin( $role, self::OPTION_REDIRECT_URL ) ),
+				self::get_option_name( self::get_redirect_option( $role ) ),
 				array(
 					'sanitize_callback' => 'esc_url_raw',
 				)
 			);
 			register_setting(
 				self::UI,
-				self::get_option_name( self::uJoin( $role, self::OPTION_FIRST_REDIRECT_URL ) ),
+				self::get_option_name( self::get_first_redirect_option( $role ) ),
 				array(
 					'sanitize_callback' => 'esc_url_raw',
 				)
@@ -135,7 +175,7 @@ class Settings {
 				self::UI
 			);
 			add_settings_field(
-				$redirect_option = self::uJoin( $role, self::OPTION_REDIRECT_URL ),
+				$redirect_option = self::get_redirect_option( $role ),
 				__( 'Login redirect URL', 'login-redirects' ),
 				array( $this, 'text_field' ),
 				self::UI,
@@ -147,7 +187,7 @@ class Settings {
 						'id'    => $redirect_option,
 						'name'  => self::get_option_name( $redirect_option ),
 						'class' => 'large-text code',
-						'value' => self::get_option( $redirect_option, '', true ),
+						'value' => self::get_redirect_url( $role ),
 					),
 					'description' => sprintf(
 						__( 'Please enter the URL to redirect %s to when they login. Leave empty to keep default redirect.', 'login-redirects' ),
@@ -156,7 +196,7 @@ class Settings {
 				)
 			);
 			add_settings_field(
-				$first_redirect_option = self::uJoin( $role, self::OPTION_FIRST_REDIRECT_URL ),
+				$first_redirect_option = self::get_first_redirect_option( $role ),
 				__( 'First login redirect URL', 'login-redirects' ),
 				array( $this, 'text_field' ),
 				self::UI,
@@ -168,7 +208,7 @@ class Settings {
 						'id'    => $first_redirect_option,
 						'name'  => self::get_option_name( $first_redirect_option ),
 						'class' => 'large-text code',
-						'value' => self::get_option( $first_redirect_option, '', true ),
+						'value' => self::get_first_redirect_url( $role ),
 					),
 					'description' => sprintf(
 						__( 'Please enter the URL to redirect %s to when they login for the first time. Leave empty to keep default redirect.', 'login-redirects' ),
@@ -207,6 +247,7 @@ class Settings {
 	 * Displays UI page.
 	 */
 	public function ui_page() {
+		/** @noinspection HtmlUnknownTarget */
 		printf(
 			'<div class="wrap %1$s-settings-page">%2$s<form action="%3$s" method="post">',
 			self::UI,
