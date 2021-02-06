@@ -138,7 +138,7 @@ class Settings {
 	 * Registers settings in UI.
 	 */
 	public function register_settings() {
-		foreach ( array_keys( self::get_roles() ) as $role ) {
+		foreach ( array_keys( self::get_editable_roles() ) as $role ) {
 			register_setting(
 				self::UI,
 				self::get_option_name( self::get_redirect_option( $role ) ),
@@ -167,7 +167,7 @@ class Settings {
 			self::UI,
 			array( $this, 'ui_page' )
 		);
-		foreach ( self::get_roles() as $role => $name ) {
+		foreach ( self::get_editable_roles() as $role => $name ) {
 			add_settings_section(
 				$role,
 				$name,
