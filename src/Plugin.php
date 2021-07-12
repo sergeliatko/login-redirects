@@ -6,6 +6,7 @@ namespace TechSpokes\LoginRedirects;
 
 use TechSpokes\LoginRedirects\Tools\GetWPRoles;
 use TechSpokes\LoginRedirects\Tools\IsEmptyStatic;
+use WP_User;
 
 /**
  * Class Plugin
@@ -74,6 +75,7 @@ class Plugin {
 		$this->setSettings( Settings::getInstance() );
 		add_action( 'user_register', array( __CLASS__, 'mark_new_user' ), 15, 1 );
 		add_filter( 'login_redirect', array( $this, 'maybe_modify_redirect' ), 15, 3 );
+		add_action( 'admin_init', array( $this, 'maybe_redirect_from_admin' ), 15, 0 );
 	}
 
 	/**
@@ -90,6 +92,31 @@ class Plugin {
 	 */
 	protected static function has_never_logged_in( int $user_id ): bool {
 		return !self::isEmpty( get_user_meta( $user_id, self::NEW_USER_MARKER, true ) );
+	}
+
+	/**
+	 * Redirects user if needed.
+	 */
+	public function maybe_redirect_from_admin() {
+		if (
+			!wp_doing_ajax()
+			&& !( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+			&& !( '/wp-admin/admin-post.php' === $_SERVER['REQUEST_URI'] )
+			&& is_user_logged_in()
+			&& ( ( $user = wp_get_current_user() ) instanceof WP_User )
+			&& !self::isEmpty( $user_roles = self::get_user_roles( $user->ID ) )
+			&& !self::isEmpty( $redirects = self::getRedirects() )
+		) {
+			foreach ( $user_roles as $user_role ) {
+				if (
+					$this->getSettings()::get_prevent_admin_access( $user_role )
+					&& !self::isEmpty( $redirect = $redirects[ $user_role ] )
+				) {
+					wp_safe_redirect( $redirect );
+					exit;
+				}
+			}
+		}
 	}
 
 	/**

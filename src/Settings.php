@@ -23,10 +23,12 @@ class Settings {
 	 */
 	public const OPTION_PREFIX = 'tslr_';
 
-	public const OPTION_REDIRECT_URL       = 'redirect_url';
-	public const OPTION_FIRST_REDIRECT_URL = 'first_redirect_url';
+	public const OPTION_REDIRECT_URL         = 'redirect_url';
+	public const OPTION_FIRST_REDIRECT_URL   = 'first_redirect_url';
+	public const OPTION_PREVENT_ADMIN_ACCESS = 'prevent_admin_access';
 
-	public const UI = 'login-redirects';
+	public const UI                 = 'login-redirects';
+	public const ADMINISTRATOR_ROLE = 'administrator';
 
 	/**
 	 * @var \TechSpokes\LoginRedirects\Settings $instance
@@ -71,6 +73,15 @@ class Settings {
 		return esc_url_raw(
 			self::get_option( self::get_first_redirect_option( $role ), '', true )
 		);
+	}
+
+	/**
+	 * @param string $role
+	 *
+	 * @return bool
+	 */
+	public static function get_prevent_admin_access( string $role ): bool {
+		return !self::isEmpty( absint( self::get_option( self::get_prevent_admin_access_option( $role ), '' ) ) );
 	}
 
 	/**
@@ -126,12 +137,38 @@ class Settings {
 	}
 
 	/**
+	 * @param $role
+	 *
+	 * @return string
+	 */
+	protected static function get_prevent_admin_access_option( $role ): string {
+		return self::u_join( $role, self::OPTION_PREVENT_ADMIN_ACCESS );
+	}
+
+	/**
 	 * @param string ...$keys
 	 *
 	 * @return string
 	 */
 	protected static function u_join( string ...$keys ): string {
 		return join( '_', func_get_args() );
+	}
+
+	/**
+	 * @param array $input_attrs
+	 *
+	 * @return array
+	 */
+	protected static function prepare_input_attrs( array $input_attrs ): array {
+		array_walk( $input_attrs, function ( string &$value, string $key ) {
+			$value = sprintf(
+				'%1$s="%2$s"',
+				$key,
+				esc_attr( $value )
+			);
+		} );
+
+		return $input_attrs;
 	}
 
 	/**
@@ -153,6 +190,15 @@ class Settings {
 					'sanitize_callback' => 'esc_url_raw',
 				)
 			);
+			if ( self::ADMINISTRATOR_ROLE !== $role ) {
+				register_setting(
+					self::UI,
+					self::get_option_name( self::get_prevent_admin_access_option( $role ) ),
+					array(
+						'sanitize_callback' => 'absint',
+					)
+				);
+			}
 		}
 	}
 
@@ -177,7 +223,7 @@ class Settings {
 			add_settings_field(
 				$redirect_option = self::get_redirect_option( $role ),
 				__( 'Login redirect URL', 'login-redirects' ),
-				array( $this, 'text_field' ),
+				array( $this, 'input_field' ),
 				self::UI,
 				$role,
 				array(
@@ -198,7 +244,7 @@ class Settings {
 			add_settings_field(
 				$first_redirect_option = self::get_first_redirect_option( $role ),
 				__( 'First login redirect URL', 'login-redirects' ),
-				array( $this, 'text_field' ),
+				array( $this, 'input_field' ),
 				self::UI,
 				$role,
 				array(
@@ -216,29 +262,47 @@ class Settings {
 					),
 				)
 			);
+			if ( self::ADMINISTRATOR_ROLE !== $role ) {
+				add_settings_field(
+					$redirect_option = self::get_prevent_admin_access_option( $role ),
+					__( 'Prevent access to admin', 'login-redirects' ),
+					array( $this, 'input_field' ),
+					self::UI,
+					$role,
+					array(
+						'label_for'   => $redirect_option,
+						'input_attrs' => array_filter(
+							array(
+								'type'    => 'checkbox',
+								'id'      => $redirect_option,
+								'name'    => self::get_option_name( $redirect_option ),
+								'value'   => '1',
+								'checked' => ( self::get_prevent_admin_access( $role ) ? 'checked' : '' ),
+							)
+						),
+						'description' => sprintf(
+							__( 'Check this box if you would like to prevent admin access completely for users with this role.', 'login-redirects' ),
+							strtolower( $name )
+						),
+					)
+				);
+			}
 		}
 	}
 
 	/**
 	 * @param array $args
 	 */
-	public function text_field( array $args ) {
+	public function input_field( array $args ) {
 		/**
 		 * @var array  $input_attrs
 		 * @var string $description
 		 */
 		extract( $args, EXTR_OVERWRITE );
-		array_walk( $input_attrs, function ( string &$value, string $key ) {
-			$value = sprintf(
-				'%1$s="%2$s"',
-				$key,
-				esc_attr( $value )
-			);
-		} );
 		/** @noinspection HtmlUnknownAttribute */
 		printf(
 			'<p><input %1$s></p><p class="description">%2$s</p>',
-			join( ' ', $input_attrs ),
+			join( ' ', self::prepare_input_attrs( $input_attrs ) ),
 			$description
 		);
 	}

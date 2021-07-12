@@ -11,7 +11,7 @@
  * Plugin Name: Login Redirects by TechSpokes Inc.
  * Plugin URI:  https://github.com/TechSpokes/login-redirects.git?utm_source=wordpress&utm_medium=plugin&utm_campaign=login-redirects&utm_content=plugin-link
  * Description: Allows login redirects based on user roles.
- * Version:     0.0.1
+ * Version:     0.0.2
  * Author:      TechSpokes Inc.
  * Author URI:  https://techspokes.com?utm_source=wordpress&utm_medium=plugin&utm_campaign=login-redirects&utm_content=author-link
  * Text Domain: login-redirects
